@@ -1,0 +1,3 @@
+The player is in a room with a locked door. There is a chest in the top left corner.
+Two Goblins sleep near the chest. The adventure ends when the player opens the chest and finds a book on the history of
+their family.

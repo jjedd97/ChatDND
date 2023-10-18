@@ -1,6 +1,19 @@
+from enum import Enum
+
 from pathfinding.core.diagonal_movement import DiagonalMovement
 from pathfinding.core.grid import Grid
 from pathfinding.finder.a_star import AStarFinder
+
+
+class Direction(Enum):
+    UP = 'up'
+    DOWN = 'down'
+    LEFT = 'left'
+    RIGHT = 'right'
+    UP_LEFT = 'up-left'
+    UP_RIGHT = 'up-right'
+    DOWN_LEFT = 'down-left'
+    DOWN_RIGHT = 'down-right'
 
 
 class Location:
@@ -26,29 +39,39 @@ class Location:
             print()
 
     def move(self, direction):
-        # TODO diagonal
         x, y = self.player_location
-
-        if direction == 'up':
+        if direction == Direction.UP.value:
             new_location = (x - 1, y)
-        elif direction == 'down':
+        elif direction == Direction.DOWN.value:
             new_location = (x + 1, y)
-        elif direction == 'left':
+        elif direction == Direction.LEFT.value:
             new_location = (x, y - 1)
-        elif direction == 'right':
+        elif direction == Direction.RIGHT.value:
             new_location = (x, y + 1)
+        elif direction == Direction.UP_LEFT.value:
+            new_location = (x - 1, y - 1)
+        elif direction == Direction.UP_RIGHT.value:
+            new_location = (x - 1, y + 1)
+        elif direction == Direction.DOWN_LEFT.value:
+            new_location = (x + 1, y - 1)
+        elif direction == Direction.DOWN_RIGHT.value:
+            new_location = (x + 1, y + 1)
         else:
             print("Invalid direction.")
             return
-        # TODO this will never be true
-        if new_location not in self.occupied:
-            self.player_location = new_location
+
+        if 0 <= new_location[0] < self.length and 0 <= new_location[1] < self.width:
+            for occupancy in self.occupied:
+                if new_location == (occupancy[0], occupancy[1]):
+                    print("Cannot move to an occupied square.")
+                    return
         else:
-            print("Cannot move to an occupied square.")
+            print("Invalid move. Out of bounds.")
             return
+        self.player_location = new_location
 
     def move_player(self, num_moves, target_coords):
-        grid = [[1 for _ in range(self.width+1)] for _ in range(self.length+1)]
+        grid = [[1 for _ in range(self.width + 1)] for _ in range(self.length + 1)]
         for coord in self.occupied:
             grid[coord[0]][coord[1]] = 0
         grid = Grid(matrix=grid)

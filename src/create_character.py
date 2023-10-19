@@ -3,7 +3,7 @@ import random
 import re
 import sqlite3
 from time import sleep
-
+from ordered_set import OrderedSet
 from src.dice_roller import roll_dice, get_modifier
 
 # Connect to the database
@@ -23,6 +23,7 @@ def get_starting_health(con: int, class_name):
     cursor.execute("SELECT hit_dice FROM classes WHERE name = ?", (class_name,))
     raw_data = cursor.fetchone()[0]
     return int(re.findall(r'\d+', raw_data)[0]) + get_modifier(con)
+
 
 def offer_armor(class_name):
     # TODO
@@ -44,7 +45,7 @@ def load_db_character_dict(name):
         "health": character_data[8],
         "level": character_data[9],
         "proficiency": character_data[10],
-        "speed": 30, # TODO
+        "speed": 30,  # TODO
         "armor": character_data[11]
     }
     cursor.execute("SELECT * FROM initial_stats WHERE character_name = ?", (name,))
@@ -100,14 +101,102 @@ def get_starting_gold(class_name):
     return gold_amount
 
 
+def get_weapons_by_type(weapon_type):
+    cursor.execute("SELECT * FROM weapons WHERE type LIKE ?", (f'%{weapon_type}%',))
+    weapons = cursor.fetchall()
+    return weapons
+
+
+def select_weapons(weapons_list, num_selections):
+    selected_weapons = []
+    if num_selections > 1:
+        print("Available Weapons:")
+        for i, weapon in enumerate(weapons_list, 1):
+            print(
+                f"{i}. Name: {weapon[0]}, Type: {weapon[1]}, Damage: {weapon[2]}, Weight: {weapon[3]}, Price: {weapon[6]}")
+
+        for _ in range(num_selections):
+            selection = int(input(f"Select weapon {len(selected_weapons) + 1} (Enter the corresponding number): "))
+
+            if 1 <= selection <= len(weapons_list):
+                selected_weapons.append(weapons_list[selection - 1])
+            else:
+                print("Invalid selection. Please choose a valid number.")
+
+    return selected_weapons
+
+
 def give_starting_weapon(character_name, class_name):
-    # TODO Flesh this out
+    # TODO spells
+    martial_choices = 0
+    simple_choices = 0
+    weapon_names = []
     print("Giving starting weapons")
     if class_name == "Fighter":
-        starting_weapons = [(character_name, "Crossbow, Light"), (character_name, "Longsword")]
-        cursor.executemany(
-            'INSERT INTO character_weapon (character_name, weapon_name) VALUES (?, ?)',
-            starting_weapons)
+        user_input = input("Would you like a shield? (yes/no): ").lower()
+        if user_input == 'yes':
+            # TODO give shield
+            martial_choices = martial_choices + 1
+        else:
+            martial_choices = martial_choices + 2
+        while True:
+            user_input = input("Do you want handaxes or a light crossbow? (handaxe/crossbow): ").lower()
+            if "handaxe" in user_input:
+                weapon_names.append("Handaxe")
+                break
+            if 'crossbow' in user_input:
+                weapon_names.append("Crossbow, Light")
+                break
+    if class_name == "Wizard":
+        while True:
+            user_input = input("Do you want daggers or a quarterstaff? (dagger/quarterstaff): ").lower()
+            if "dagger" in user_input:
+                weapon_names.append("Dagger")
+                break
+            if 'quarterstaff' in user_input:
+                weapon_names.append("Quarterstaff")
+                break
+    if class_name == "Rogue":
+        weapon_names.append("Dagger")
+        while True:
+            user_input = input("Do you want a rapier or a shortsword? (rapier/shortsword): ").lower()
+            if "rapier" in user_input:
+                weapon_names.append("Rapier")
+                break
+            if 'shortsword' in user_input:
+                weapon_names.append("Shortsword")
+                break
+        if "shortsword" in weapon_names:
+            weapon_names.append("Shortbow")
+        else:
+            while True:
+                user_input = input("Do you want a shortbow or a shortsword? (shortbow/shortsword): ").lower()
+                if "shortbow" in user_input:
+                    weapon_names.append("Shortbow")
+                    break
+                if 'shortsword' in user_input:
+                    weapon_names.append("Shortsword")
+                    break
+    if class_name == "Cleric":
+        # TODO martial proficiency check
+        weapon_names.append("mace")
+        simple_choices = simple_choices + 1
+    if class_name == "Barbarian":
+        simple_choices = simple_choices + 1
+        martial_choices = martial_choices + 1
+    all_martial_weapon = get_weapons_by_type("martial")
+    selected_martial_weapons = select_weapons(all_martial_weapon, martial_choices)
+    for weapon in selected_martial_weapons:
+        weapon_names.append(weapon[0])
+    all_simple_weapon = get_weapons_by_type("simple")
+    selected_simple_weapons = select_weapons(all_simple_weapon, simple_choices)
+    for weapon in selected_simple_weapons:
+        weapon_names.append(weapon[0])
+    for i in range(len(weapon_names)):
+        weapon_names[i] = (character_name, weapon_names[i])
+    cursor.executemany(
+        'INSERT INTO character_weapon (character_name, weapon_name) VALUES (?, ?)',
+        weapon_names)
 
 
 def give_starting_items(character_name):
@@ -118,10 +207,22 @@ def give_starting_items(character_name):
         starting_items)
 
 
+def check_if_name_exists(name):
+    # Check if the name exists in the characters table
+    cursor.execute("SELECT name FROM characters WHERE name=?", (name,))
+    result = cursor.fetchone()
+    return bool(result)
+
+
 # Function to create a character
 def create_character():
     available_races, available_classes = get_available_races_classes()
-    name = input("Enter character name: ")
+    while True:
+        name = input("Enter a name: ")
+        if not check_if_name_exists(name):
+            break
+        else:
+            print("This name already exists. Please choose a different name.")
     print("Available Races:", available_races)
     race = input("Enter character race: ")
 
@@ -208,7 +309,7 @@ def roll_stats():
     user_input = input().split()
 
     try:
-        selections = list(map(int, user_input))
+        selections = OrderedSet(map(int, user_input))
         if len(selections) == 6 and all(1 <= s <= 6 for s in selections):
             for i, stat in enumerate(selections):
                 assigned_stats[stat - 1] = rolls[i]
@@ -235,12 +336,31 @@ def point_buy():
 
         try:
             selections = list(map(int, user_input))
-            if len(selections) == 2 and all(1 <= s <= 6 for s in selections):
-                if points >= selections[0] and stats[selections[1] - 1] < 15:
-                    stats[selections[1] - 1] += selections[0]
-                    points -= selections[0]
+            if len(selections) == 2 and 1 <= selections[1] <= 6:
+                if points >= selections[0] and stats[selections[1] - 1] < 15 and stats[selections[1] - 1] + selections[0] >= 8 :
+                    extra = 0
+                    # points above 13 cost 2 to add to
+                    if stats[selections[1] - 1] + selections[0] >= 14:
+                        if stats[selections[1] - 1] + selections[0] == 15 and stats[selections[1] - 1] < 14:
+                            extra = 2
+                        else:
+                            extra = 1
+                    # subtraction
+                    if selections[0] < 0 and stats[selections[1] - 1] + selections[0] >= 14:
+                        if stats[selections[1] - 1] == 15 and selections[0] < -1:
+                            extra = -2
+                        else:
+                            extra = -1
+                    if points >= selections[0] + extra:
+                        stats[selections[1] - 1] += selections[0]
+                        points -= selections[0] + extra
+                    else:
+                        print("Selections above 13 cost an extra point")
                 else:
-                    print(f"You can't add points to stat {selections[1]}.")
+                    if selections[0] < 0:
+                        print(f"You can't subtract points to stat {selections[1]}.")
+                    else:
+                        print(f"You can't add points to stat {selections[1]}.")
             else:
                 print("Invalid selection. Please enter three valid numbers (1-6).")
         except ValueError:

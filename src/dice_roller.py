@@ -1,6 +1,41 @@
 import random
 
 
+def roll_d20():
+    return random.randint(1, 20)
+
+
+def roll_advantage():
+    return max(roll_d20(), roll_d20())
+
+
+def roll_disadvantage():
+    return min(roll_d20(), roll_d20())
+
+
+def roll_save(roll: str, stats: dict, quiet: bool = False) -> bool:
+    components = roll.split()
+    # AS long as the check includes something like 12 strength we will attempt a roll
+    for i in range(len(components)):
+        try:
+            num = int(components[i])
+            stat_name = stats[components[i+1].lower()]
+            modifier = get_modifier(stat_name)
+            if not quiet:
+                print(f"Rolling {stat_name} save ... ")
+            save_roll = roll_d20() + modifier
+            if save_roll >= num:
+                if not quiet:
+                    print(f"Success, roll: {save_roll}")
+                    return True
+            else:
+                if not quiet:
+                    print(f"Failure, roll: {save_roll}")
+                    return False
+        except ValueError:
+            pass
+
+
 def roll_dice(roll: str):
     # Split the expression into individual components
     components = roll.split()

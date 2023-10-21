@@ -1,7 +1,7 @@
 ### CHATDND 
 A fun cli game made during a hackathon - development may continue
 
-At this stage the game is missing many components and goblins are the only enemies with attacks
+At this stage the game is incomplete but may work if chatgpt cooperates. 
 
 ## Character creation: 
 run src/create_character.py to create a character

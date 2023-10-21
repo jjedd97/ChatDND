@@ -37,20 +37,33 @@ CREATE TABLE IF NOT EXISTS attacks (
     hit INTEGER,
     damage_type TEXT,
     damage_roll TEXT,
+    save_roll TEXT,
+    save_damage TEXT,
+    save_type TEXT,
     max_targets INTEGER, 
     range INTEGER,
     fullrange INTEGER,
+    charges INTEGER,
+    status TEXT,
     FOREIGN KEY(monster_name) REFERENCES monsters(name)
 );'''
 cursor.execute(attack_table)
 attacks = [
-("Goblin", 'Scimitar', 4, 'slashing', '1d6 + 2', 1, None, None),
-    ("Goblin", 'Shortbow', 4, 'slashing', '1d6 + 2', 1, 80, 320)
+("Goblin", 'Scimitar', 4, 'slashing', '1d6 + 2', None, None, None, 1, None, None, None, None),
+    ("Goblin", 'Shortbow', 4, 'piercing', '1d6 + 2', None, None, None, 1, 80, 320, None, None),
+("Orc", 'Greataxe', 5, 'slashing', '1d12 + 3', 1, None, None, None, None, None, None, None),
+("Orc", 'Javelin', 5, 'piercing', '1d6 + 3', None, None, None, 1, 30, 120, None, None),
+("Giant Spider", 'Bite', 5, 'piercing', '1d8 + 3', "DC 11 Constitution half", "2d8", "poison", 1, 80, 320, None, None),
+("Giant Spider", 'Web', 5, None, None, None, None, None, 1, 30, 60, 5, "{'restrained':'DC 12 Strength'}"),
+("Skeleton", 'Shortsword', 5, 'piercing', '1d6 + 2', None, None, None, 1, None, None, None, None),
+("Skeleton", 'Shortbow', 5, 'piercing', '1d6 + 2', None, None, None, 1, 80, 320, None, None),
+("Zombie", 'Slam', 3, 'bludgeoning', '1d6 + 1', None, None, None, 1, None, None, None, None),
 ]
 
 cursor.executemany('INSERT INTO attacks '
-                   '(monster_name, name, hit, damage_type, damage_roll, max_targets, range, fullrange) '
-                   'VALUES (?,?,?,?,?,?,?,?)',
+                   '(monster_name, name, hit, damage_type, damage_roll,  save_roll, save_damage, save_type, max_targets,'
+                   ' range, fullrange, charges, status) '
+                   'VALUES (?,?,?,?,?,?,?,?, ?, ?, ?, ?, ?)',
                    attacks)
 
 

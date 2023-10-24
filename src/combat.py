@@ -4,8 +4,8 @@ from re import sub
 from time import sleep
 from typing import Union
 
-from src.dice_roller import roll_dice, get_modifier
-from src.location import Location
+from src.dice_roller import roll_dice, get_modifier, roll_disadvantage, roll_d20
+from src.location import Location, Direction
 import sqlite3
 
 # Connect to the database (creates a new one if it doesn't exist)
@@ -52,7 +52,7 @@ def determine_combat_order(monsters, init):
             found = True
             break
     if not found:
-        sorted_data.insert(i, {"char": "P", "monster_name": "player"})
+        sorted_data.append({"char": "P", "monster_name": "player"})
     sorted_names = [item['monster_name'] for item in sorted_data]
     print(f"Combat order: {sorted_names}")
     map_names = [item['char'] for item in sorted_data]
@@ -99,6 +99,8 @@ def calculate_distance(x1, y1, x2, y2):
 
 def get_random_in_range_attack(monster, location):
     ranged_attacks = []
+    dis_ranged_attacks = []
+    type = "long"
     for attack in monster["attacks"]:
         value = monster["attacks"][attack]
         if value["range"] is not None:
@@ -108,19 +110,30 @@ def get_random_in_range_attack(monster, location):
             if distance <= value["range"]:
                 value["name"] = attack
                 ranged_attacks.append(value)
-    return choice(ranged_attacks)
+            elif distance <= value["fullrange"]:
+                value["name"] = attack
+                dis_ranged_attacks.append(value)
+    if not ranged_attacks:
+        ranged_attacks = dis_ranged_attacks
+        type = "long_disadvantage"
+    if ranged_attacks:
+        return choice(ranged_attacks), type
+    else:
+        return None, None
 
 
-def attack_player(attack, player):
-    # TODO hit
-    hit = randint(1, 20) + attack["hit"]
+def attack_player(attack, attack_type, player):
+    if attack_type == "long_disadvantage":
+        hit = roll_disadvantage() + attack["hit"]
+    else:
+        hit = roll_d20() + attack["hit"]
     if hit >= player["ac"]:
         print(f"Attacked with {attack['name']}")
         damage = roll_dice(attack['roll'])
         print(f"Attacked for {damage}")
         player["health"] = player["health"] - damage
     else:
-        print("Player dogded the attack!")
+        print("Player dodged the attack!")
 
 
 def give_player_ac(player):
@@ -135,13 +148,22 @@ def player_can_hit_monster(weapon, monster, location) -> Union[str, None]:
     monster_neighbors = location.get_valid_neighbors(*monster_cords)
     if player_location in monster_neighbors and weapon["range"] is None:
         return "short"
-    if weapon["range"] and player_location not in monster_neighbors and calculate_distance(monster["location"][0],
-                                                                                           monster["location"][1],
-                                                                                           location.player_location[0],
-                                                                                           location.player_location[
-                                                                                               1]) * 5 <= weapon[
-        "range"]:
+    if (weapon["range"] and player_location not in monster_neighbors
+            and calculate_distance(monster["location"][0],
+                                   monster["location"][1],
+                                   location.player_location[0],
+                                   location.player_location[
+                                       1]) * 5 <= weapon[
+                "range"]):
         return "long"
+    if (weapon["range"] and player_location not in monster_neighbors
+            and calculate_distance(monster["location"][0],
+                                   monster["location"][1],
+                                   location.player_location[0],
+                                   location.player_location[
+                                       1]) * 5 <= weapon[
+                "fullrange"]):
+        return "long_disadvantage"
     return None
 
 
@@ -169,8 +191,8 @@ def select_monster_character(monsters):
     try:
         choice = int(input("Enter the number of the monster you want to select: "))
         if 1 <= choice <= len(monsters):
-            selected_char = monsters[choice - 1]['char']
-            return selected_char
+            selected_char = monsters[choice - 1][0]['char']
+            return selected_char, monsters[1]
         else:
             print("Invalid choice. Please enter a valid number.")
     except ValueError:
@@ -185,8 +207,11 @@ def switch_weapons(player, current_weapon):
             return player["weapons"][choice]
 
 
-def attack_monster(monster, weapon, player):
-    hit = randint(1, 20) + player["proficiency"] + get_modifier(player["stats"]["strength"])
+def attack_monster(monster, attack_type, weapon, player):
+    if attack_type == "long_disadvantage":
+        hit = roll_disadvantage() + player["proficiency"] + get_modifier(player["stats"]["strength"])
+    else:
+        hit = roll_d20() + player["proficiency"] + get_modifier(player["stats"]["strength"])
     if hit >= monster["armor_class"]:
         attack_data = weapon["Damage"].split()
         dice = attack_data[0]
@@ -206,8 +231,8 @@ def move_player(player, location):
     moves = player["speed"] / 5
     while moves > 0:
         move_input = input(
-            "Enter a direction (up/down/left/right) or coordinates (x y) to move(quit to stop): ").lower()
-        if move_input in ['up', 'down', 'left', 'right']:
+            f"Enter a direction {Direction.list()}  or coordinates (x y) to move(quit to stop): ").lower()
+        if move_input in Direction.list():
             location.move(move_input)
             moves = moves - 1
         elif move_input == "quit":
@@ -255,7 +280,7 @@ def combat(location: Location, monsters: list, init: int, player: dict) -> dict:
                         for monster in monsters:
                             result = player_can_hit_monster(current_weapon, monster, location)
                             if result:
-                                hittable_monsters.append(monster)
+                                hittable_monsters.append((monster, result))
                         if not hittable_monsters and "attack" in actions:
                             actions.remove("attack")
                         if hittable_monsters and not already_attacked and "attack" not in actions:
@@ -271,11 +296,11 @@ def combat(location: Location, monsters: list, init: int, player: dict) -> dict:
                         if chosen_action == "attack":
                             # TODO multiple targets
                             if len(hittable_monsters) > 1:
-                                char = select_monster_character(hittable_monsters)
+                                char, attack_type = select_monster_character(hittable_monsters)
                             else:
-                                char = hittable_monsters[0]["char"]
-                            attacking = [x for x in hittable_monsters if x["char"] == char][0]
-                            attack_monster(attacking, current_weapon, player)
+                                char, attack_type = hittable_monsters[0][0]["char"], hittable_monsters[0][1]
+                            attacking = [x for x in hittable_monsters if x[0]["char"] == char][0]
+                            attack_monster(attacking[0], attacking[1], current_weapon, player)
                             actions.remove("attack")
                             already_attacked = True
                         if chosen_action == "move":
@@ -292,7 +317,7 @@ def combat(location: Location, monsters: list, init: int, player: dict) -> dict:
                     monster_cords = (current_monster["location"][0], current_monster["location"][1])
                     close_attack = False
                     if monster_cords not in player_neighbors:
-                        attack = get_random_in_range_attack(current_monster, location)
+                        attack, attack_type = get_random_in_range_attack(current_monster, location)
                         if not attack:
                             for neighbor in player_neighbors:
                                 if location.move_object(creature["speed"] / 5,
@@ -307,11 +332,12 @@ def combat(location: Location, monsters: list, init: int, player: dict) -> dict:
 
                     if close_attack:
                         attack = get_random_non_ranged_attack(current_monster)
+                        attack_type = "close"
 
                     if attack:
                         print(f"{creature} is attacking")
                         sleep(1)
-                        attack_player(attack, player)
+                        attack_player(attack, attack_type, player)
         # TODO remove the dead monsters
         alive_monsters = [monster for monster in monsters if "hit_points" not in monster or monster["hit_points"] > 0]
         dead_monsters = [monster for monster in monsters if monster not in alive_monsters]

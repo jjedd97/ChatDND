@@ -6,6 +6,10 @@ from pathfinding.finder.a_star import AStarFinder
 
 
 class Direction(Enum):
+    @classmethod
+    def list(cls):
+        return list(map(lambda c: c.value, cls))
+
     UP = 'up'
     DOWN = 'down'
     LEFT = 'left'

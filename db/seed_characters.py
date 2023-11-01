@@ -64,6 +64,9 @@ CREATE TABLE IF NOT EXISTS characters (
     level INT,
     proficiency INTEGER,
     armor TEXT,
+    resistances TEXT,
+    immunities TEXT,
+    weaknesses TEXT,
     FOREIGN KEY (class) REFERENCES classes (name),
     FOREIGN KEY (race) REFERENCES races (name)
 );

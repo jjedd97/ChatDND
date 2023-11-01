@@ -79,8 +79,9 @@ def load_monsters_attacks(monsters):
         monster['hit_points'] = details[3]
         monster['armor_class'] = details[4]
         monster["resistances"] = details[6]
-        monster["weakness"] = details[7]
-        monster["speed"] = details[8]
+        monster["immunities"] = details[7]
+        monster["weakness"] = details[8]
+        monster["speed"] = details[9]
 
 
 def get_random_non_ranged_attack(monster):
@@ -130,6 +131,12 @@ def attack_player(attack, attack_type, player):
     if hit >= player["ac"]:
         print(f"Attacked with {attack['name']}")
         damage = roll_dice(attack['roll'])
+        if attack["damage_type"] in player["resistances"]:
+            damage = damage / 2
+            print("You are resistance to the monsters attack")
+        if attack["damage_type"] in player["immunities"]:
+            damage = 0
+            print("The monster's attack seems ineffective")
         print(f"Attacked for {damage}")
         player["health"] = player["health"] - damage
     else:
@@ -218,6 +225,15 @@ def attack_monster(monster, attack_type, weapon, player):
         damage_type = attack_data[1]
         # TODO finnesse
         damage = roll_dice(dice) + player["proficiency"] + get_modifier(player["stats"]["strength"])
+        if damage_type in monster["resistances"]:
+            damage = damage / 2
+            print("The monster takes less of a hit then you would expect")
+        if damage_type in monster["immunities"]:
+            damage = 0
+            print("The attack seems ineffective")
+        if damage_type in monster["weaknesses"]:
+            damage = damage * 2
+            print("The monster seems to take more damage then you would expect")
         monster["hit_points"] = monster["hit_points"] - damage
         message = f"You hit the monster for {damage}."
         if monster["hit_points"] < 1:

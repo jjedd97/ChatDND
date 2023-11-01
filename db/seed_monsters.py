@@ -14,20 +14,21 @@ CREATE TABLE IF NOT EXISTS monsters (
     armor_class INTEGER,
     challenge_rating REAL,
     resistances TEXT,
+    immunities TEXT,
     weaknesses TEXT,
     speed INTEGER
 );'''
 monsters = [
-    ('Goblin', 'Humanoid', 'Neutral Evil', 7, 15, 0.25, None, None, 30),
-    ('Orc', 'Humanoid', 'Chaotic Evil', 15, 13, 0.5, None, None, 30),
-    ('Giant Spider', 'Beast', 'Unaligned', 26, 14, 1, None, None, 30),
-    ('Skeleton', 'Undead', 'Lawful Evil', 13, 13, 0.25, "poison", "bludgeoning", 30),
-    ('Zombie', 'Undead', 'Neutral Evil', 22, 8, 0.5, "poison", None, 20)
+    ('Goblin', 'Humanoid', 'Neutral Evil', 7, 15, 0.25, None, None, None, 30),
+    ('Orc', 'Humanoid', 'Chaotic Evil', 15, 13, 0.5, None, None, None, 30),
+    ('Giant Spider', 'Beast', 'Unaligned', 26, 14, 1, None, None, None, 30),
+    ('Skeleton', 'Undead', 'Lawful Evil', 13, 13, 0.25, None, "poison", "bludgeoning", 30),
+    ('Zombie', 'Undead', 'Neutral Evil', 22, 8, 0.5, None, "poison", None, 20)
 ]
 cursor.execute(monster_table)
 # Insert the race data into the table
-cursor.executemany('INSERT INTO monsters (name, type, alignment, hit_points, armor_class, challenge_rating, resistances, weaknesses, speed) '
-                   'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', monsters)
+cursor.executemany('INSERT INTO monsters (name, type, alignment, hit_points, armor_class, challenge_rating, resistances, immunities, weaknesses, speed) '
+                   'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', monsters)
 
 attack_table = '''
 CREATE TABLE IF NOT EXISTS attacks (

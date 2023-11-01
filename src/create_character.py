@@ -46,7 +46,9 @@ def load_db_character_dict(name):
         "level": character_data[9],
         "proficiency": character_data[10],
         "speed": 30,  # TODO
-        "armor": character_data[11]
+        "armor": character_data[11],
+        "immunities": character_data[12],
+        "weakness": character_data[13]
     }
     cursor.execute("SELECT * FROM initial_stats WHERE character_name = ?", (name,))
     stats_data = cursor.fetchone()
@@ -283,7 +285,9 @@ def create_character():
         "level": 1,  # TODO
         "health": starting_health,
         "proficiency": 2,
-        "armor": offer_armor(class_name)
+        "armor": offer_armor(class_name),
+        "immunities": None,
+        "weaknesses": None
     }
 
 
@@ -372,11 +376,12 @@ def point_buy():
 # Function to save the character to the database
 def save_character(character):
     cursor.execute(
-        "INSERT INTO characters (name, description, race, class, age, weight, gold, level, health, max_health, proficiency, armor)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO characters (name, description, race, class, age, weight, gold, level, health, max_health,"
+        " proficiency, armor, immunities, weaknesses)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (character["name"], character["description"], character["race"], character["class"],
          character["age"], character["weight"], character["starting_gold"], character["level"], character["health"],
-         character['health'], character["proficiency"], character['armor']))
+         character['health'], character["proficiency"], character['armor'], character["immunities"], character["weaknesses"]))
 
     cursor.execute(
         "INSERT INTO initial_stats (strength, dexterity, constitution, intelligence, wisdom, charisma, character_name) VALUES (?, ?, ?, ?, ?, ?, ?)",
